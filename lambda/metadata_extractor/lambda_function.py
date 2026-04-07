@@ -57,5 +57,33 @@ def lambda_handler(event, context):
     # todo: write the metadata dict as JSON to s3 at processed/metadata/{filename}.json
     #       hint: s3.put_object(Bucket=bucket, Key=f"processed/metadata/{filename}.json",
     #             Body=json.dumps(metadata), ContentType='application/json')
-
+    
+    for record in event['Records']:
+        sns_message = json.loads(record['Sns']['Message'])
+        for s3_record in sns_message['Records']:
+            bucket_name = s3_record['s3']['bucket']['name']
+            bucket_key = s3_record['s3']['object']['key']
+            bucket_size = s3_record['s3']['object']['size']
+            event_time = s3_record['eventTime']
+            print(f"[METADATA] File: {bucket_key}")
+            print(f"[METADATA] Bucket: {bucket_name}")
+            print(f"[METADATA] Size: {bucket_size} bytes")
+            print(f"[METADATA] Upload Time: {event_time}")
+                        
+            metadata = {
+                "file": bucket_key,
+                "bucket": bucket_name,
+                "size": bucket_size,
+                "upload_time": event_time
+            }
+            
+            filename = os.path.splitext(bucket_key.split('/')[-1])[0]
+            
+            s3.put_object(
+                Bucket=bucket_name, 
+                Key=f"processed/metadata/{filename}.json", 
+                Body=json.dumps(metadata), 
+                ContentType='application/json'
+            )
+    
     return {'statusCode': 200, 'body': 'metadata extracted'}
